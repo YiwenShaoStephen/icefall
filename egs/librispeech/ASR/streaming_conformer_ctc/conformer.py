@@ -176,7 +176,7 @@ class Conformer(Transformer):
         """
         if self.encoder.training:
             return self.train_run_encoder(
-                x, supervisions, dynamic_chunk_training, short_chunk_proportion
+                x, supervisions, chunk_size, dynamic_chunk_training, short_chunk_proportion
             )
         else:
             return self.eval_run_encoder(
@@ -187,6 +187,7 @@ class Conformer(Transformer):
         self,
         x: Tensor,
         supervisions: Optional[Supervisions] = None,
+        chunk_size: int = -1,
         dynamic_chunk_training: bool = False,
         short_chunk_threshold: float = 0.5,
     ) -> Tuple[Tensor, Optional[Tensor]]:
@@ -228,6 +229,16 @@ class Conformer(Transformer):
             )
             x = self.encoder(
                 x, pos_emb, mask=mask, src_key_padding_mask=src_key_padding_mask
+            )  # (T, B, F)
+        elif chunk_size > -1: # fixed chunk size in training
+            mask = ~subsequent_chunk_mask(
+                size=x.size(0), chunk_size=chunk_size, device=x.device
+            )
+            x = self.encoder(
+                x,
+                pos_emb,
+                mask=mask,
+                src_key_padding_mask=src_key_padding_mask,
             )  # (T, B, F)
         else:
             x = self.encoder(x, pos_emb, src_key_padding_mask=mask)  # (T, B, F)
